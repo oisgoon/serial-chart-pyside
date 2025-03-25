@@ -60,7 +60,14 @@ class SerialChartApp(QWidget):
 
         ctrl_layout.addWidget(QLabel("Port:"))
         ctrl_layout.addWidget(self.port_box)
+        ctrl_layout.addWidget(QLabel("Text:"))
+        self.text_input = QLineEdit()
+        self.text_input.setMaximumWidth(100)
+        self.text_input.setText("")  # 기본값 설정
+        ctrl_layout.addWidget(self.text_input)
         ctrl_layout.addWidget(QLabel("Baud:"))
+        self.baud_box = QComboBox()
+        self.baud_box.addItems(["9600", "115200", "2000000"])
         ctrl_layout.addWidget(self.baud_box)
         ctrl_layout.addWidget(self.connect_btn)
         layout.addLayout(ctrl_layout)
@@ -118,14 +125,14 @@ class SerialChartApp(QWidget):
                 line = self.serial.readline().decode().strip()
                 self.console.append(line)
 
-                # 예시: "[LUX: 357, delay: 1000ms]"
-                if line.startswith("[LUX"):
-                    start = line.find("LUX:")
+                # text_input의 값을 사용하여 파싱
+                prefix = f"[{self.text_input.text()}"
+                if line.startswith(prefix):
+                    start = line.find(f"{self.text_input.text()}:")
                     if start != -1:
-                        # "LUX: 357" → 357 추출
                         try:
-                            lux_str = line[start:].split(",")[0]  # "LUX: 357"
-                            value = int(lux_str.split(":")[1].strip())
+                            value_str = line[start:].split(",")[0]  # "TEXT: 357"
+                            value = int(value_str.split(":")[1].strip())
 
                             self.counter += 1
                             self.data_x.append(self.counter)
@@ -136,11 +143,10 @@ class SerialChartApp(QWidget):
 
                             self.update_chart()
                         except Exception as parse_error:
-                            self.console.append(f"Parsing error: {parse_error}")
+                            self.console.append(f"파싱 오류: {parse_error}")
 
             except Exception as e:
-                self.console.append(f"Read error: {e}")
-
+                self.console.append(f"읽기 오류: {e}")
 
     def update_chart(self):
         self.line.set_data(self.data_x, self.data_y)
