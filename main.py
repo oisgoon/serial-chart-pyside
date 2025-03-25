@@ -125,25 +125,27 @@ class SerialChartApp(QWidget):
                 line = self.serial.readline().decode().strip()
                 self.console.append(line)
 
-                # text_input의 값을 사용하여 파싱
-                prefix = f"[{self.text_input.text()}"
-                if line.startswith(prefix):
-                    start = line.find(f"{self.text_input.text()}:")
-                    if start != -1:
-                        try:
-                            value_str = line[start:].split(",")[0]  # "TEXT: 357"
-                            value = int(value_str.split(":")[1].strip())
+                # text_input이 비어있지 않을 때만 파싱 진행
+                input_text = self.text_input.text().strip()
+                if input_text:  # 입력값이 있을 때만 실행
+                    prefix = f"[{input_text}"
+                    if line.startswith(prefix):
+                        start = line.find(f"{input_text}:")
+                        if start != -1:
+                            try:
+                                value_str = line[start:].split(",")[0]
+                                value = int(value_str.split(":")[1].strip())
 
-                            self.counter += 1
-                            self.data_x.append(self.counter)
-                            self.data_y.append(value)
+                                self.counter += 1
+                                self.data_x.append(self.counter)
+                                self.data_y.append(value)
 
-                            self.data_x = self.data_x[-100:]
-                            self.data_y = self.data_y[-100:]
+                                self.data_x = self.data_x[-100:]
+                                self.data_y = self.data_y[-100:]
 
-                            self.update_chart()
-                        except Exception as parse_error:
-                            self.console.append(f"파싱 오류: {parse_error}")
+                                self.update_chart()
+                            except Exception as parse_error:
+                                self.console.append(f"파싱 오류: {parse_error}")
 
             except Exception as e:
                 self.console.append(f"읽기 오류: {e}")
