@@ -118,21 +118,29 @@ class SerialChartApp(QWidget):
                 line = self.serial.readline().decode().strip()
                 self.console.append(line)
 
-                # 예시: "test1:123"
-                if line.startswith("test1:"):
-                    value = int(line.split(":")[1])
-                    self.counter += 1
-                    self.data_x.append(self.counter)
-                    self.data_y.append(value)
+                # 예시: "[LUX: 357, delay: 1000ms]"
+                if line.startswith("[LUX"):
+                    start = line.find("LUX:")
+                    if start != -1:
+                        # "LUX: 357" → 357 추출
+                        try:
+                            lux_str = line[start:].split(",")[0]  # "LUX: 357"
+                            value = int(lux_str.split(":")[1].strip())
 
-                    # keep recent 100 data
-                    self.data_x = self.data_x[-100:]
-                    self.data_y = self.data_y[-100:]
+                            self.counter += 1
+                            self.data_x.append(self.counter)
+                            self.data_y.append(value)
 
-                    self.update_chart()
+                            self.data_x = self.data_x[-100:]
+                            self.data_y = self.data_y[-100:]
+
+                            self.update_chart()
+                        except Exception as parse_error:
+                            self.console.append(f"Parsing error: {parse_error}")
 
             except Exception as e:
-                self.console.append(f"Parse error: {e}")
+                self.console.append(f"Read error: {e}")
+
 
     def update_chart(self):
         self.line.set_data(self.data_x, self.data_y)
