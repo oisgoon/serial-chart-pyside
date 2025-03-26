@@ -15,6 +15,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import mplcursors
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib.dates as mdates
 
 
 class SerialChartApp(QWidget):
@@ -58,14 +59,14 @@ class SerialChartApp(QWidget):
         self.toolbar = NavigationToolbar(self.canvas, self)
         
         # Stop, Clear, Save 버튼 생성 및 스타일 설정
-        self.stop_btn = QPushButton("Stop")
-        self.clear_btn = QPushButton("Clear")
-        self.save_btn = QPushButton("Save")
+        # self.stop_btn = QPushButton("Stop")
+        # self.clear_btn = QPushButton("Clear")
+        # self.save_btn = QPushButton("Save")
         
-        # 툴바에 버튼 추가
-        self.toolbar.addWidget(self.stop_btn)
-        self.toolbar.addWidget(self.clear_btn)
-        self.toolbar.addWidget(self.save_btn)
+        # # 툴바에 버튼 추가
+        # self.toolbar.addWidget(self.stop_btn)
+        # self.toolbar.addWidget(self.clear_btn)
+        # self.toolbar.addWidget(self.save_btn)
         
         chart_container.addWidget(self.canvas)
         chart_container.addWidget(self.toolbar)
@@ -115,12 +116,17 @@ class SerialChartApp(QWidget):
         cmd_layout = QHBoxLayout()
         self.input_line = QLineEdit()
         self.send_btn = QPushButton("Send")
+        self.stop_btn = QPushButton("Stop")
+        self.clear_btn = QPushButton("Clear")
+        self.save_btn = QPushButton("Save")
 
         # input_line에서 엔터키 입력 시 send_command 실행
         self.input_line.returnPressed.connect(self.send_command)
-
         cmd_layout.addWidget(self.input_line)
         cmd_layout.addWidget(self.send_btn)
+        cmd_layout.addWidget(self.stop_btn)
+        cmd_layout.addWidget(self.clear_btn)
+        cmd_layout.addWidget(self.save_btn)
         layout.addLayout(cmd_layout)
 
         self.connect_btn.clicked.connect(self.toggle_connection)
@@ -128,6 +134,7 @@ class SerialChartApp(QWidget):
         self.stop_btn.clicked.connect(self.stop_chart)
         self.clear_btn.clicked.connect(self.clear_chart)
         self.save_btn.clicked.connect(self.save_data)
+        self.canvas.mpl_connect("pick_event", self.handle_legend_pick)
 
         self.refresh_ports()
 
@@ -213,8 +220,9 @@ class SerialChartApp(QWidget):
                                 self.cursors.append(cursor)
 
                             # x 축 데이터 추가
-                            self.counter += 1
-                            self.data_x.append(self.counter)
+                            # self.counter += 1
+                            # self.data_x.append(self.counter)
+                            self.data_x.append(datetime.now())
                             
                             # 각 데이터 시리즈 업데이트
                             for i in range(len(number_list)):
@@ -237,32 +245,63 @@ class SerialChartApp(QWidget):
         # 각 선 업데이트 및 가시성 설정
         for i, line in enumerate(self.lines):
             data = self.data_y[i]
-            if data and any(x is not None for x in data):  # 데이터가 있는 경우만
+            if data and any(x is not None for x in data):
                 line.set_data(self.data_x, self.data_y[i])
-                line.set_visible(True)
+                # ✅ 처음엔 무조건 보이도록 설정
+                if not hasattr(line, '_was_visible'):
+                    line.set_visible(True)
+                    line._was_visible = True
             else:
                 line.set_visible(False)
-        
+
+        # X축 포맷을 시간(datetime)으로 지정
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
+        self.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        for label in self.ax.get_xticklabels():
+            label.set_rotation(-30)
+
         # 보이는 선만 범례에 표시
-        handles = [line for line in self.lines if line.get_visible()]
-        labels = [f"{i+1}" for i, line in enumerate(self.lines) if line.get_visible()]
-        
-        # 범례 설정 변경
-        self.ax.legend(handles, labels, 
-                      loc='upper center',
-                      bbox_to_anchor=(0.5, -0.05),  # 그래프 아래에 위치
-                      ncol=10,  # 10개를 한 줄에 표시
-                      frameon=False,  # 테두리 제거
-                      prop={'size': 8},  # 폰트 크기 축소
-                      borderaxespad=0)  # 그래프와의 간격 조정
-        
-        # 그래프 여백 조정
-        self.figure.tight_layout()  # 자동으로 여백 조정
-        
+        handles = self.lines
+        labels = [f"{i+1}" for i in range(len(self.lines))]
+
+        # 기존 범례 제거
+        if hasattr(self, 'legend') and self.legend:
+            self.legend.remove()
+
+        # 새 범례 생성
+        self.legend = self.ax.legend(
+            handles, labels,
+            loc='upper center',
+            bbox_to_anchor=(0.5, 1.05),
+            ncol=10,
+            frameon=False,
+            prop={'size': 8},
+            borderaxespad=0
+        )
+
+        # 범례 클릭 이벤트 설정 및 상태 복원
+        for legend_line, orig_line in zip(self.legend.get_lines(), self.lines):
+            legend_line.set_picker(True)
+            legend_line._linked_line = orig_line
+            # 숨긴 상태 복원
+            legend_line.set_alpha(1.0 if orig_line.get_visible() else 0.2)
+
+        self.figure.tight_layout()
         self.ax.relim()
         self.ax.autoscale_view()
         self.canvas.draw()
 
+
+
+    def handle_legend_pick(self, event):
+            legend_line = event.artist
+            linked_line = getattr(legend_line, '_linked_line', None)
+            if linked_line:
+                visible = not linked_line.get_visible()
+                linked_line.set_visible(visible)
+                legend_line.set_alpha(1.0 if visible else 0.2)  # 숨겨진 건 흐리게
+                self.canvas.draw()
+                
     def send_command(self):
         if self.serial and self.serial.is_open:
             command = self.input_line.text()
@@ -329,10 +368,10 @@ class SerialChartApp(QWidget):
         self.console.append(f"Console data saved to {console_filename}")
 
     def on_cursor_add(self, sel):
-        x_val = int(sel.target[0])
+        x_val = mdates.num2date(sel.target[0]).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         y_val = int(sel.target[1])
         label = sel.artist.get_label()
-        sel.annotation.set_text(f"{label}\nX: {x_val}\nY: {y_val}")
+        sel.annotation.set_text(f"{label}\nTime: {x_val}\nY: {y_val}")
         sel.annotation.set_visible(True)
         self.canvas.draw_idle()
 
