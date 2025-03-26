@@ -134,11 +134,12 @@ class SerialChartApp(QWidget):
         # 각 선에 대해 커서 추가
         self.cursors = []
         for line in self.lines:
-            cursor = mplcursors.cursor(line, hover=True)
-            cursor.connect("add", lambda sel: sel.annotation.set_text(
-                f"X: {int(sel.target[0])}\nY: {int(sel.target[1])}"))
-            # 마우스가 떠날 때 annotation 숨기기
-            cursor.connect("remove", lambda sel: sel.annotation.set_visible(False))
+            cursor = mplcursors.cursor(
+                line, 
+                hover=True,
+                annotation_kwargs=dict(bbox=dict(fc="white", alpha=0.8))
+            )
+            cursor.connect("add", self.on_cursor_add)
             self.cursors.append(cursor)
 
     def refresh_ports(self):
@@ -203,11 +204,12 @@ class SerialChartApp(QWidget):
                                 line, = self.ax.plot([], [], color, label=str(i+1), visible=False)
                                 self.lines.append(line)
                                 self.data_y.append([])
-                                cursor = mplcursors.cursor(line, hover=True)
-                                cursor.connect("add", lambda sel: sel.annotation.set_text(
-                                    f"X: {int(sel.target[0])}\nY: {int(sel.target[1])}"))
-                                # 마우스가 떠날 때 annotation 숨기기
-                                cursor.connect("remove", lambda sel: sel.annotation.set_visible(False))
+                                cursor = mplcursors.cursor(
+                                    line, 
+                                    hover=True,
+                                    annotation_kwargs=dict(bbox=dict(fc="white", alpha=0.8))
+                                )
+                                cursor.connect("add", self.on_cursor_add)
                                 self.cursors.append(cursor)
 
                             # x 축 데이터 추가
@@ -325,6 +327,19 @@ class SerialChartApp(QWidget):
             
         self.console.append(f"Chart data saved to {chart_filename}")
         self.console.append(f"Console data saved to {console_filename}")
+
+    def on_cursor_add(self, sel):
+        sel.annotation.set_text(f"{sel.artist.get_label()}: {int(sel.target[1])}")
+        sel.annotation.set_visible(True)
+        self.canvas.draw_idle()
+        
+        # 마우스가 떠나면 주석 제거
+        def remove_annotation(event):
+            if sel.annotation:
+                sel.annotation.set_visible(False)
+                self.canvas.draw_idle()
+        
+        sel.annotation.figure.canvas.mpl_connect('motion_notify_event', remove_annotation)
 
 
 if __name__ == "__main__":
