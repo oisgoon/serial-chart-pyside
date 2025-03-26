@@ -329,18 +329,19 @@ class SerialChartApp(QWidget):
         self.console.append(f"Console data saved to {console_filename}")
 
     def on_cursor_add(self, sel):
-        sel.annotation.set_text(f"{sel.artist.get_label()}: {int(sel.target[1])}")
+        x_val = int(sel.target[0])
+        y_val = int(sel.target[1])
+        label = sel.artist.get_label()
+        sel.annotation.set_text(f"{label}\nX: {x_val}\nY: {y_val}")
         sel.annotation.set_visible(True)
         self.canvas.draw_idle()
-        
-        # 마우스가 떠나면 주석 제거
+
         def remove_annotation(event):
             if sel.annotation:
                 sel.annotation.set_visible(False)
                 self.canvas.draw_idle()
-        
-        sel.annotation.figure.canvas.mpl_connect('motion_notify_event', remove_annotation)
 
+        sel.annotation.figure.canvas.mpl_connect('motion_notify_event', remove_annotation)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
