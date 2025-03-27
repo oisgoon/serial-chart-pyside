@@ -1,5 +1,6 @@
 # main.py
 
+import os
 import sys
 import serial
 import serial.tools.list_ports
@@ -58,16 +59,6 @@ class SerialChartApp(QWidget):
         # 네비게이션 툴바 추가
         self.toolbar = NavigationToolbar(self.canvas, self)
         
-        # Stop, Clear, Save 버튼 생성 및 스타일 설정
-        # self.stop_btn = QPushButton("Stop")
-        # self.clear_btn = QPushButton("Clear")
-        # self.save_btn = QPushButton("Save")
-        
-        # # 툴바에 버튼 추가
-        # self.toolbar.addWidget(self.stop_btn)
-        # self.toolbar.addWidget(self.clear_btn)
-        # self.toolbar.addWidget(self.save_btn)
-        
         chart_container.addWidget(self.canvas)
         chart_container.addWidget(self.toolbar)
         top_layout.addLayout(chart_container)
@@ -96,6 +87,9 @@ class SerialChartApp(QWidget):
         self.timestamp_checkbox.setChecked(True)
         self.autoscroll_checkbox = QCheckBox("Auto Scroll")
         self.autoscroll_checkbox.setChecked(True)
+        self.autosave_checkbox = QCheckBox("Auto Save")
+        self.autosave_checkbox.setChecked(True)
+
 
         ctrl_layout.addWidget(QLabel("Port:"))
         ctrl_layout.addWidget(self.port_box)
@@ -108,6 +102,7 @@ class SerialChartApp(QWidget):
         ctrl_layout.addWidget(self.baud_box)
         ctrl_layout.addWidget(self.timestamp_checkbox)
         ctrl_layout.addWidget(self.autoscroll_checkbox)
+        ctrl_layout.addWidget(self.autosave_checkbox) 
         ctrl_layout.addWidget(self.connect_btn)
 
         layout.addLayout(ctrl_layout)
@@ -224,6 +219,11 @@ class SerialChartApp(QWidget):
                             # self.data_x.append(self.counter)
                             self.data_x.append(datetime.now())
                             
+                            # 자동 저장 실행
+                            if self.autosave_checkbox.isChecked():
+                                timestamp = self.data_x[-1]
+                                self.append_to_csv(timestamp, number_list)
+                            
                             # 각 데이터 시리즈 업데이트
                             for i in range(len(number_list)):
                                 self.data_y[i].append(number_list[i])
@@ -240,6 +240,14 @@ class SerialChartApp(QWidget):
 
             except Exception as e:
                 self.console.append(f"Read Error: {e}")
+    def append_to_csv(self, timestamp: datetime, values: list[int]):
+        file_exists = os.path.isfile("auto_log.csv")
+        with open("auto_log.csv", "a", encoding="utf-8") as f:
+            if not file_exists:
+                header = "Timestamp," + ",".join([f"CH{i+1}" for i in range(len(values))]) + "\n"
+                f.write(header)
+            line = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + "," + ",".join(map(str, values)) + "\n"
+            f.write(line)
 
     def update_chart(self):
         # 각 선 업데이트 및 가시성 설정
@@ -290,8 +298,6 @@ class SerialChartApp(QWidget):
         self.ax.relim()
         self.ax.autoscale_view()
         self.canvas.draw()
-
-
 
     def handle_legend_pick(self, event):
             legend_line = event.artist
