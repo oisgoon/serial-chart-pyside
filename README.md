@@ -44,6 +44,11 @@ pip install pyserial PySide6 matplotlib mplcursors
 python main.py
 ```
 
+## 프로그램 배포
+```bash
+pyinstaller --noconfirm --windowed --onedir main.py
+```
+
 ## UI
 
 - 포트 및 Baudrate 선택 후 Connect
