@@ -2,6 +2,7 @@
 
 실시간 시리얼 데이터를 수신하여 차트로 시각화하고, CSV 파일로 자동 저장하는 PySide6 + Matplotlib 기반 GUI 프로그램입니다.
 
+<img src="https://github.com/user-attachments/assets/dc00259c-18c1-4353-997f-33a1b24261e4" width="70%" />
 
 
 ## 🚀 주요 기능
